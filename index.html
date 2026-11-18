@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1b1b">
+<title>FantaSiena · 21 novembre</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  /* ====== Stile: Balzana senese (bianco/nero) + terra di Siena ====== */
+  :root{
+    --ink:#1b1b1b; --paper:#faf7f2; --card:#ffffff; --line:#e7e1d8;
+    --siena:#a0522d; --siena-d:#7f3f20; --muted:#6f6a63;
+    --ok:#188038; --warn:#b06000; --bad:#c5221f;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent}
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+
+  /* header */
+  header.top{position:sticky;top:0;z-index:10;color:#fff;
+    background:linear-gradient(180deg,#1b1b1b 0 50%,#2a2a2a 50% 100%);}
+  header.top .bar{max-width:640px;margin:0 auto;padding:14px 16px 12px;display:flex;align-items:center;gap:12px}
+  .logo{font-weight:800;letter-spacing:.5px;font-size:20px;line-height:1}
+  .logo small{display:block;font-weight:500;font-size:12px;opacity:.75;letter-spacing:0;margin-top:3px}
+  .balzana{width:26px;height:26px;border-radius:6px;overflow:hidden;flex:none;border:2px solid #fff;
+    background:linear-gradient(180deg,#fff 0 50%,#000 50% 100%)}
+  .spacer{flex:1}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+    background:rgba(255,255,255,.12);color:#fff;font-size:14px;font-weight:600;border:0}
+  .teamdot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+
+  /* tabs */
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabs .in{max-width:640px;margin:0 auto;display:flex}
+  nav.tabs button{flex:1;border:0;background:none;padding:10px 4px 12px;font-size:12px;font-weight:600;color:var(--muted);
+    display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+  nav.tabs button .ic{font-size:22px;line-height:1}
+  nav.tabs button.on{color:var(--siena)}
+  .badge{position:absolute;top:4px;left:calc(50% + 8px);background:var(--bad);color:#fff;border-radius:999px;
+    font-size:11px;padding:1px 6px;min-width:18px}
+
+  h1,h2,h3{margin:0}
+  h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:22px 4px 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .row{display:flex;align-items:center;gap:10px}
+  .btn{border:0;border-radius:12px;padding:12px 16px;font-weight:700;background:var(--ink);color:#fff}
+  .btn.siena{background:var(--siena)}
+  .btn.ghost{background:#efe9e0;color:var(--ink)}
+  .btn.ok{background:var(--ok)} .btn.bad{background:var(--bad)}
+  .btn:disabled{opacity:.5}
+  .btn.block{width:100%}
+  input[type=text],input[type=password],input[type=number],textarea,select{
+    width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+  textarea{resize:vertical;min-height:70px}
+
+  /* hero */
+  .hero{margin-top:16px;border-radius:var(--radius);padding:18px;color:#fff;position:relative;overflow:hidden}
+  .hero .pts{font-size:44px;font-weight:800;line-height:1}
+  .hero .lbl{opacity:.85;font-size:14px}
+  .progress{height:8px;border-radius:99px;background:rgba(255,255,255,.3);margin-top:14px;overflow:hidden}
+  .progress i{display:block;height:100%;background:#fff;border-radius:99px}
+  .banner{margin-top:12px;background:#fff6e5;border:1px solid #f4d9a6;color:#6b4300;border-radius:12px;padding:10px 12px;font-size:14px}
+
+  /* challenge list */
+  .ch{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:1px solid var(--line);
+    background:#fff;border-radius:14px;padding:14px;margin-bottom:8px}
+  .ch .ico{font-size:22px;width:28px;text-align:center;flex:none}
+  .ch .t{font-weight:700}
+  .ch .d{font-size:13px;color:var(--muted)}
+  .ch .r{margin-left:auto;text-align:right;flex:none}
+  .pill{display:inline-block;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+  .p-todo{background:#f1ede6;color:var(--muted)}
+  .p-pend{background:#fff1d6;color:var(--warn)}
+  .p-ok{background:#e3f3e7;color:var(--ok)}
+  .p-bad{background:#fde7e6;color:var(--bad)}
+  .maxp{font-size:12px;color:var(--muted);margin-top:4px}
+
+  /* leaderboard */
+  .lb{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid var(--line);margin-bottom:8px}
+  .lb .pos{font-weight:800;width:28px;text-align:center;font-size:18px}
+  .lb .nm{font-weight:700}
+  .lb .bar{height:6px;border-radius:99px;margin-top:6px;background:#efe9e0;overflow:hidden}
+  .lb .bar i{display:block;height:100%}
+  .lb .sc{margin-left:auto;font-weight:800;font-size:20px}
+  .lb.me{outline:2px solid var(--siena)}
+
+  /* gallery */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .tile{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .tile .m{aspect-ratio:1/1;background:#ddd;display:block;width:100%;object-fit:cover}
+  .tile .c{padding:8px 10px;font-size:12px}
+  .tile .c b{display:block;font-size:13px}
+
+  /* sheet */
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+  .sheet{background:var(--paper);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;
+    padding:18px 16px calc(24px + env(safe-area-inset-bottom))}
+  .sheet .grab{width:44px;height:5px;border-radius:9px;background:#d6cfc4;margin:0 auto 12px}
+  .sheet h3{font-size:22px;margin-bottom:4px}
+  .preview{margin-top:12px;border-radius:14px;overflow:hidden;background:#000}
+  .preview img,.preview video{display:block;width:100%;max-height:50vh;object-fit:contain}
+  .filebtn{display:flex;align-items:center;justify-content:center;gap:8px;border:2px dashed #cdbfae;border-radius:14px;
+    padding:18px;background:#fff;font-weight:700;color:var(--siena-d);margin-top:14px}
+  .filebtn input{display:none}
+
+  /* admin */
+  .rev{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px}
+  .rev .media{background:#000}
+  .rev .media img,.rev .media video{display:block;width:100%;max-height:60vh;object-fit:contain}
+  .rev .body{padding:12px 14px}
+  .range{width:100%}
+  .seg{display:flex;background:#efe9e0;border-radius:12px;padding:4px;gap:4px;margin-top:14px}
+  .seg button{flex:1;border:0;background:none;border-radius:9px;padding:8px;font-weight:700;font-size:14px;color:var(--muted)}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+  .teams{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  .teambtn{border:0;border-radius:16px;padding:18px 12px;color:#fff;font-weight:800;font-size:18px;text-align:center}
+  .teambtn .e{font-size:34px;display:block;margin-bottom:4px}
+
+  .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:99;max-width:90vw;text-align:center}
+  .empty{text-align:center;padding:28px 12px;color:var(--muted)}
+  .center{text-align:center}
+</style>
+</head>
+<body>
+<header class="top"><div class="bar">
+  <div class="balzana" aria-hidden="true"></div>
+  <div class="logo">FantaSiena<small>Gita a Siena · 21 novembre</small></div>
+  <div class="spacer"></div>
+  <div id="hdrRight"></div>
+</div></header>
+<main class="wrap" id="app"><div class="empty">Caricamento…</div></main>
+<nav class="tabs" id="tabs" hidden><div class="in" id="tabsIn"></div></nav>
+<div id="sheetRoot"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURAZIONE — incolla qui i dati del tuo progetto Supabase
+   (Project Settings → API → Project URL e anon public key)
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL: "https://kmkwhuoxfaalutmxrpue.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_28MnKSh2MF3m3vDDd7zbKA_iOh4VMTu",
+  BUCKET: "prove",
+  REFRESH_MS: 8000,        // ogni quanto si aggiorna la classifica
+  MAX_VIDEO_MB: 48         // limite Supabase gratuito: 50 MB a file
+};
+
+/* ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem(k); } catch {} }
+};
+function toast(msg, ms = 2600){
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+function errMsg(e){ return (e && (e.message || e.error_description || e.error)) || "Errore di rete, riprova"; }
+
+let sb = null;
+let teams = [], challenges = [], subs = [], state = { leaderboard_hidden:false, message:"" };
+let me = store.get("fs_team");          // {id, code}
+let adminPin = null;
+try { adminPin = sessionStorage.getItem("fs_pin"); } catch {}
+const isAdminRoute = () => location.hash.replace("#","").startsWith("giudice");
+let tab = "sfide", adminTab = "coda";
+let loaded = false, sheetOpen = false;
+
+/* ---------- dati ---------- */
+const teamById = (id) => teams.find(t => t.id === id);
+const chById = (id) => challenges.find(c => c.id === id);
+const fileUrl = (p) => p ? sb.storage.from(CONFIG.BUCKET).getPublicUrl(p).data.publicUrl : "";
+function scores(){
+  const m = {}; teams.forEach(t => m[t.id] = 0);
+  subs.forEach(s => { if (s.status === "approved" && m[s.team_id] !== undefined) m[s.team_id] += s.points; });
+  return teams.map(t => ({ ...t, pts: m[t.id] })).sort((a,b) => b.pts - a.pts || a.sort - b.sort);
+}
+function teamSubFor(teamId, chId){
+  // la più recente per questa sfida
+  return subs.filter(s => s.team_id === teamId && s.challenge_id === chId)
+             .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+}
+const maxTotal = () => challenges.reduce((a,c) => a + c.max_points, 0);
+
+async function loadStatic(){
+  const [t, c] = await Promise.all([
+    sb.from("teams").select("*").order("sort"),
+    sb.from("challenges").select("*").order("sort")
+  ]);
+  if (t.error) throw t.error; if (c.error) throw c.error;
+  teams = t.data; challenges = c.data;
+}
+async function loadLive(){
+  const [s, st] = await Promise.all([
+    sb.from("submissions").select("*").order("created_at", { ascending:false }).limit(2000),
+    sb.from("app_state").select("*").eq("id",1).maybeSingle()
+  ]);
+  if (s.error) throw s.error;
+  subs = s.data || [];
+  if (st.data) state = st.data;
+}
+let lastSig = "";
+const sliderVals = {};
+async function refresh(force = false){
+  try {
+    await loadLive();
+    const sig = JSON.stringify([subs.map(s => s.id + s.status + s.points), state]);
+    if (sheetOpen) return;
+    if (!force && sig === lastSig) return;           // niente di nuovo: non ridisegnare
+    lastSig = sig;
+    if (!force && isAdminRoute() && adminPin && adminTab === "impost") return; // non cancellare ciò che stai scrivendo
+    render();
+  } catch(e){ console.warn(e); }
+}
+
+/* ---------- avvio ---------- */
+async function boot(){
+  if (!window.supabase || CONFIG.SUPABASE_URL.startsWith("INCOLLA")){
+    $("#app").innerHTML = `<div class="card" style="margin-top:16px"><b>Configurazione mancante</b>
+      <p class="muted">Apri index.html e incolla Project URL e anon key di Supabase in CONFIG.</p></div>`;
+    return;
+  }
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth:{ persistSession:false } });
+  try { await loadStatic(); await loadLive(); }
+  catch(e){
+    $("#app").innerHTML = `<div class="card" style="margin-top:16px"><b>Non riesco a collegarmi</b>
+      <p class="muted">${esc(errMsg(e))}</p><button class="btn" onclick="location.reload()">Riprova</button></div>`;
+    return;
+  }
+  loaded = true;
+  if (me && !teamById(me.id)) { me = null; store.del("fs_team"); }
+  render();
+  setInterval(refresh, CONFIG.REFRESH_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+  window.addEventListener("hashchange", render);
+}
+
+/* ---------- render ---------- */
+function render(){
+  if (!loaded) return;
+  if (isAdminRoute()) return renderAdmin();
+  if (!me) return renderLogin();
+  renderTeam();
+}
+
+function setTabs(list, current, onPick){
+  const nav = $("#tabs"); nav.hidden = false;
+  $("#tabsIn").innerHTML = list.map(t =>
+    `<button data-k="${t.k}" class="${t.k === current ? "on" : ""}"><span class="ic">${t.ic}</span>${t.label}${t.badge ? `<span class="badge">${t.badge}</span>` : ""}</button>`
+  ).join("");
+  $("#tabsIn").querySelectorAll("button").forEach(b => b.onclick = () => { onPick(b.dataset.k); window.scrollTo(0,0); });
+}
+
+/* ===== LOGIN SQUADRA ===== */
+function renderLogin(){
+  $("#tabs").hidden = true; $("#hdrRight").innerHTML = "";
+  $("#app").innerHTML = `
+    <div class="card" style="margin-top:16px">
+      <h2 style="font-size:22px">Benvenuti a Siena! 🏰</h2>
+      <p class="muted" style="margin:6px 0 0">Scegliete la vostra squadra. Il codice ve lo dà il vostro khadem.</p>
+      <div class="teams">${teams.map(t => `
+        <button class="teambtn" style="background:${esc(t.color)}" data-id="${esc(t.id)}">
+          <span class="e">${esc(t.emoji)}</span>${esc(t.name)}</button>`).join("")}
+      </div>
+    </div>
+    <p class="center small muted" style="margin-top:18px">Giudice? <a href="#giudice">Entra qui</a></p>`;
+  $("#app").querySelectorAll(".teambtn").forEach(b => b.onclick = () => askCode(teamById(b.dataset.id)));
+}
+function askCode(t){
+  openSheet(`
+    <div class="center"><div style="font-size:48px">${esc(t.emoji)}</div><h3>Squadra ${esc(t.name)}</h3>
+    <p class="muted">Inserite il codice a 4 cifre della squadra</p></div>
+    <input id="code" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Codice" style="text-align:center;font-size:24px;letter-spacing:6px">
+    <button class="btn siena block" id="go" style="margin-top:12px">Entra</button>`);
+  const inp = $("#code"); setTimeout(() => inp.focus(), 50);
+  const go = async () => {
+    const code = inp.value.trim(); if (!code) return;
+    $("#go").disabled = true;
+    const { data, error } = await sb.rpc("check_team", { p_team: t.id, p_code: code });
+    $("#go").disabled = false;
+    if (error) return toast(errMsg(error));
+    if (!data) { toast("Codice sbagliato"); inp.select(); return; }
+    me = { id: t.id, code }; store.set("fs_team", me); closeSheet(); tab = "sfide"; render();
+    toast(`Forza ${t.name}! ${t.emoji}`);
+  };
+  $("#go").onclick = go; inp.onkeydown = (e) => { if (e.key === "Enter") go(); };
+}
+
+/* ===== VISTA SQUADRA ===== */
+function renderTeam(){
+  const t = teamById(me.id);
+  $("#hdrRight").innerHTML = `<button class="chip" id="chg"><span class="teamdot" style="background:${esc(t.color)}"></span>${esc(t.emoji)} ${esc(t.name)}</button>`;
+  $("#chg").onclick = () => {
+    openSheet(`<h3>Cambiare squadra?</h3><p class="muted">Dovrete reinserire il codice.</p>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" id="no">Annulla</button>
+      <button class="btn bad" style="flex:1" id="yes">Esci</button></div>`);
+    $("#no").onclick = closeSheet;
+    $("#yes").onclick = () => { me = null; store.del("fs_team"); closeSheet(); render(); };
+  };
+  setTabs([
+    { k:"sfide", ic:"🎯", label:"Sfide" },
+    { k:"classifica", ic:"🏆", label:"Classifica" },
+    { k:"galleria", ic:"🖼️", label:"Galleria" }
+  ], tab, (k) => { tab = k; render(); });
+
+  if (tab === "classifica") return renderBoard(false);
+  if (tab === "galleria") return renderGallery();
+
+  const mySubs = subs.filter(s => s.team_id === t.id);
+  const pts = mySubs.filter(s => s.status === "approved").reduce((a,s) => a + s.points, 0);
+  const done = challenges.filter(c => { const s = teamSubFor(t.id, c.id); return s && s.status === "approved"; }).length;
+  const pend = challenges.filter(c => { const s = teamSubFor(t.id, c.id); return s && s.status === "pending"; }).length;
+
+  const stops = [];
+  challenges.forEach(c => { let g = stops.find(x => x.stop === c.stop); if (!g) stops.push(g = { stop:c.stop, items:[] }); g.items.push(c); });
+
+  $("#app").innerHTML = `
+    <div class="hero" style="background:linear-gradient(135deg, ${esc(t.color)}, #1b1b1b)">
+      <div class="lbl">Punti squadra ${esc(t.emoji)}</div>
+      <div class="pts">${pts}</div>
+      <div class="lbl">${done}/${challenges.length} sfide approvate${pend ? ` · ${pend} in attesa` : ""}</div>
+      <div class="progress"><i style="width:${challenges.length ? Math.round(done / challenges.length * 100) : 0}%"></i></div>
+    </div>
+    ${state.message ? `<div class="banner">📣 ${esc(state.message)}</div>` : ""}
+    ${stops.map(g => `
+      <h2 class="sec">📍 ${esc(g.stop)}</h2>
+      ${g.items.map(c => {
+        const s = teamSubFor(t.id, c.id);
+        let pill = `<span class="pill p-todo">Da fare</span>`;
+        if (s?.status === "pending") pill = `<span class="pill p-pend">⏳ In attesa</span>`;
+        if (s?.status === "approved") pill = `<span class="pill p-ok">✓ +${s.points}</span>`;
+        if (s?.status === "rejected") pill = `<span class="pill p-bad">✗ Riprova</span>`;
+        return `<button class="ch" data-id="${esc(c.id)}">
+          <span class="ico">${c.kind === "video" ? "🎥" : "📷"}</span>
+          <span><span class="t">${esc(c.title)}</span><br><span class="d">${esc(c.description.length > 80 ? c.description.slice(0,78) + "…" : c.description)}</span></span>
+          <span class="r">${pill}<div class="maxp">max ${c.max_points} pt</div></span>
+        </button>`;
+      }).join("")}`).join("")}
+    <p class="center small muted" style="margin-top:20px">Le prove vengono valutate dai giudici. Restate sempre con il vostro khadem!</p>`;
+  $("#app").querySelectorAll(".ch").forEach(b => b.onclick = () => openChallenge(chById(b.dataset.id)));
+}
+
+function openChallenge(c){
+  const s = teamSubFor(me.id, c.id);
+  const canSend = !s || s.status === "rejected";
+  let statusHtml = "";
+  if (s?.status === "pending") statusHtml = `<div class="banner">⏳ Prova inviata, in attesa dei giudici.</div>`;
+  if (s?.status === "approved") statusHtml = `<div class="banner" style="background:#e3f3e7;border-color:#b7dfc2;color:#0d5323">✓ Approvata: +${s.points} punti su ${c.max_points}</div>`;
+  if (s?.status === "rejected") statusHtml = `<div class="banner" style="background:#fde7e6;border-color:#f5c0bd;color:#8a1512">✗ Prova non valida. Potete rifarla e rinviarla.</div>`;
+  const prev = s && s.file_path ? mediaHtml(s.file_path, s.file_type) : "";
+
+  openSheet(`
+    <h3>${c.kind === "video" ? "🎥" : "📷"} ${esc(c.title)}</h3>
+    <div class="muted small">📍 ${esc(c.stop)} · fino a <b>${c.max_points} punti</b> · ${c.kind === "video" ? "video" : "foto"}</div>
+    <p style="margin:12px 0 0">${esc(c.description)}</p>
+    ${statusHtml}
+    ${!canSend && prev ? `<div class="preview">${prev}</div>` : ""}
+    ${canSend ? `
+      <label class="filebtn">📤 Scegli o scatta ${c.kind === "video" ? "il video" : "la foto"}
+        <input type="file" id="file" accept="image/*,video/*"></label>
+      <div id="pv"></div>
+      <textarea id="note" maxlength="300" placeholder="Nota per i giudici (facoltativa)" style="margin-top:12px"></textarea>
+      <button class="btn siena block" id="send" style="margin-top:12px" disabled>Invia la prova</button>
+      <div id="prog" class="small muted center" style="margin-top:8px"></div>` : ""}
+    <button class="btn ghost block" id="close" style="margin-top:10px">Chiudi</button>`);
+  $("#close").onclick = closeSheet;
+  if (!canSend) return;
+
+  let picked = null;
+  $("#file").onchange = (e) => {
+    picked = e.target.files[0] || null;
+    if (!picked) return;
+    if (picked.type.startsWith("video/") && picked.size > CONFIG.MAX_VIDEO_MB * 1024 * 1024){
+      toast(`Video troppo pesante (max ${CONFIG.MAX_VIDEO_MB} MB): fatelo più corto`, 4000);
+      picked = null; e.target.value = ""; $("#send").disabled = true; $("#pv").innerHTML = ""; return;
+    }
+    const url = URL.createObjectURL(picked);
+    $("#pv").innerHTML = `<div class="preview">${picked.type.startsWith("video/")
+      ? `<video src="${url}" controls playsinline></video>` : `<img src="${url}" alt="">`}</div>`;
+    $("#send").disabled = false;
+  };
+  $("#send").onclick = async () => {
+    if (!picked) return;
+    const btn = $("#send"); btn.disabled = true;
+    const prog = $("#prog");
+    try {
+      prog.textContent = "Preparo il file…";
+      const blob = await shrinkImage(picked);
+      const ext = extFor(blob.type || picked.type, picked.name);
+      const path = `${me.id}/${c.id}/${uid()}.${ext}`;
+      prog.textContent = "Caricamento in corso… non chiudere la pagina";
+      const up = await sb.storage.from(CONFIG.BUCKET).upload(path, blob, { contentType: blob.type || picked.type, upsert:false });
+      if (up.error) throw up.error;
+      prog.textContent = "Quasi fatto…";
+      const { error } = await sb.rpc("submit_proof", {
+        p_team: me.id, p_code: me.code, p_challenge: c.id, p_path: path,
+        p_type: blob.type || picked.type, p_note: $("#note").value.trim()
+      });
+      if (error) throw error;
+      closeSheet(); toast("Prova inviata! ⏳ Ora tocca ai giudici");
+      await refresh(true);
+    } catch(e){
+      prog.textContent = ""; btn.disabled = false;
+      const m = errMsg(e);
+      if (/codice/i.test(m)) { toast("Codice squadra non più valido: rientrate"); me = null; store.del("fs_team"); closeSheet(); render(); }
+      else toast("Invio non riuscito: " + m, 4500);
+    }
+  };
+}
+
+function uid(){
+  if (window.crypto?.randomUUID) return crypto.randomUUID();
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+function extFor(type, name){
+  const map = { "image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/heic":"heic","image/heif":"heif",
+    "video/mp4":"mp4","video/quicktime":"mov","video/webm":"webm","video/3gpp":"3gp" };
+  if (map[type]) return map[type];
+  const m = /\.([a-z0-9]{2,5})$/i.exec(name || ""); return m ? m[1].toLowerCase() : "bin";
+}
+// riduce le foto a max 1600px per caricare in fretta anche con poco segnale
+async function shrinkImage(file){
+  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const max = 1600, k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    if (k === 1 && file.size < 1.5e6 && file.type === "image/jpeg") return file;
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+    const out = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.82));
+    return out || file;
+  } catch { return file; }
+}
+function mediaHtml(path, type){
+  const u = esc(fileUrl(path));
+  return (type || "").startsWith("video/") || /\.(mp4|mov|webm|3gp)$/i.test(path)
+    ? `<video src="${u}" controls playsinline preload="metadata"></video>`
+    : `<img src="${u}" alt="" loading="lazy">`;
+}
+
+/* ===== CLASSIFICA ===== */
+function renderBoard(asAdmin){
+  const hidden = state.leaderboard_hidden && !asAdmin;
+  const list = scores();
+  const top = Math.max(1, ...list.map(x => x.pts));
+  const medals = ["🥇","🥈","🥉"];
+  const html = hidden
+    ? `<div class="card center" style="margin-top:16px;padding:28px 16px"><div style="font-size:48px">🤫</div>
+        <h2 style="font-size:20px;margin-top:6px">Classifica nascosta</h2>
+        <p class="muted">Sarà svelata alla premiazione. Continuate a fare sfide!</p></div>`
+    : `${asAdmin && state.leaderboard_hidden ? `<div class="banner">👁️ La classifica è nascosta alle squadre: la vedi solo tu.</div>` : ""}
+       <h2 class="sec">Classifica live</h2>
+       ${list.map((t,i) => `
+        <div class="lb ${me && me.id === t.id && !asAdmin ? "me" : ""}">
+          <div class="pos">${medals[i] || (i+1)}</div>
+          <div style="flex:1;min-width:0">
+            <div class="nm">${esc(t.emoji)} ${esc(t.name)}</div>
+            <div class="bar"><i style="width:${Math.max(0, Math.round(t.pts / top * 100))}%;background:${esc(t.color)}"></i></div>
+          </div>
+          <div class="sc">${t.pts}</div>
+        </div>`).join("")}
+       <p class="center small muted">Si aggiorna da sola · massimo ${maxTotal()} punti dalle sfide</p>`;
+  if (asAdmin) return html;
+  $("#app").innerHTML = html;
+}
+
+/* ===== GALLERIA ===== */
+function renderGallery(){
+  const list = subs.filter(s => s.status === "approved" && s.file_path);
+  $("#app").innerHTML = list.length ? `
+    <h2 class="sec">Le prove approvate</h2>
+    <div class="grid">${list.map(s => {
+      const t = teamById(s.team_id) || {}, c = chById(s.challenge_id) || {};
+      const isV = (s.file_type || "").startsWith("video/");
+      return `<div class="tile">${isV
+        ? `<video class="m" src="${esc(fileUrl(s.file_path))}" controls playsinline preload="metadata"></video>`
+        : `<img class="m" src="${esc(fileUrl(s.file_path))}" alt="" loading="lazy">`}
+        <div class="c"><b>${esc(c.title || "")}</b>${esc(t.emoji || "")} ${esc(t.name || "")} · +${s.points}</div></div>`;
+    }).join("")}</div>` : `<div class="empty">📷<br>Ancora nessuna prova approvata.<br>La prima potrebbe essere la vostra!</div>`;
+}
+
+/* ===== GIUDICE ===== */
+function renderAdmin(){
+  $("#hdrRight").innerHTML = `<span class="chip">⚖️ Giudice</span>`;
+  if (!adminPin){
+    $("#tabs").hidden = true;
+    $("#app").innerHTML = `
+      <div class="card" style="margin-top:16px">
+        <h2 style="font-size:20px">Area giudici ⚖️</h2>
+        <p class="muted">Inserisci il PIN.</p>
+        <input id="pin" type="password" autocomplete="off" placeholder="PIN">
+        <button class="btn block" id="pgo" style="margin-top:12px">Entra</button>
+        <p class="center small" style="margin-top:14px"><a href="#" id="back">← Torna alle squadre</a></p>
+      </div>`;
+    $("#back").onclick = (e) => { e.preventDefault(); location.hash = ""; };
+    const go = async () => {
+      const p = $("#pin").value.trim(); if (!p) return;
+      const { data, error } = await sb.rpc("is_admin", { p_pin: p });
+      if (error) return toast(errMsg(error));
+      if (!data) return toast("PIN errato");
+      adminPin = p; try { sessionStorage.setItem("fs_pin", p); } catch {}
+      render();
+    };
+    $("#pgo").onclick = go; $("#pin").onkeydown = (e) => { if (e.key === "Enter") go(); };
+    return;
+  }
+  const pending = subs.filter(s => s.status === "pending").sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+  setTabs([
+    { k:"coda", ic:"📥", label:"Da valutare", badge: pending.length || "" },
+    { k:"classifica", ic:"🏆", label:"Classifica" },
+    { k:"storico", ic:"🗂️", label:"Storico" },
+    { k:"impost", ic:"⚙️", label:"Gestione" }
+  ], adminTab, (k) => { adminTab = k; render(); });
+
+  if (adminTab === "classifica") { $("#app").innerHTML = renderBoard(true); return; }
+  if (adminTab === "storico") return renderHistory();
+  if (adminTab === "impost") return renderSettings();
+
+  $("#app").innerHTML = pending.length ? `
+    <h2 class="sec">${pending.length} prov${pending.length === 1 ? "a" : "e"} da valutare · dalla più vecchia</h2>
+    ${pending.map(s => {
+      const t = teamById(s.team_id) || {}, c = chById(s.challenge_id) || { max_points:10, title:"?" };
+      return `<div class="rev" data-id="${s.id}">
+        <div class="media">${mediaHtml(s.file_path, s.file_type)}</div>
+        <div class="body">
+          <div class="row"><span class="teamdot" style="background:${esc(t.color)}"></span>
+            <b>${esc(t.emoji)} ${esc(t.name)}</b><span class="spacer"></span>
+            <span class="small muted">${new Date(s.created_at).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}</span></div>
+          <div style="margin-top:6px"><b>${esc(c.title)}</b> <span class="muted small">· max ${c.max_points}</span></div>
+          <div class="small muted">${esc(c.description)}</div>
+          ${s.note ? `<div class="banner" style="margin-top:8px">💬 ${esc(s.note)}</div>` : ""}
+          <div class="row" style="margin-top:12px">
+            <input class="range" type="range" min="0" max="${c.max_points}" value="${sliderVals[s.id] ?? c.max_points}" step="1">
+            <b class="val" style="width:56px;text-align:right;font-size:20px">${sliderVals[s.id] ?? c.max_points}</b>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn bad act" data-a="rejected" style="flex:1">✗ Rifiuta</button>
+            <button class="btn ok act" data-a="approved" style="flex:2">✓ Approva</button>
+          </div>
+        </div></div>`;
+    }).join("")}` : `<div class="empty" style="padding-top:48px">✅<br>Nessuna prova da valutare.<br><span class="small">Si aggiorna da solo ogni pochi secondi.</span></div>`;
+
+  $("#app").querySelectorAll(".rev").forEach(card => {
+    const r = $(".range", card), v = $(".val", card);
+    r.oninput = () => { v.textContent = r.value; sliderVals[card.dataset.id] = r.value; };
+    card.querySelectorAll(".act").forEach(b => b.onclick = async () => {
+      card.querySelectorAll("button").forEach(x => x.disabled = true);
+      const { error } = await sb.rpc("admin_review", { p_pin: adminPin, p_id: card.dataset.id, p_status: b.dataset.a, p_points: +r.value });
+      if (error) { card.querySelectorAll("button").forEach(x => x.disabled = false); return adminError(error); }
+      toast(b.dataset.a === "approved" ? `Approvata: +${r.value}` : "Rifiutata");
+      await refresh(true);
+    });
+  });
+}
+function adminError(e){
+  const m = errMsg(e); toast(m);
+  if (/PIN/i.test(m)) { adminPin = null; try { sessionStorage.removeItem("fs_pin"); } catch {} render(); }
+}
+function renderHistory(){
+  const list = subs.filter(s => s.status !== "pending");
+  $("#app").innerHTML = list.length ? `
+    <h2 class="sec">Prove valutate e bonus</h2>
+    ${list.map(s => {
+      const t = teamById(s.team_id) || {}, c = s.challenge_id ? chById(s.challenge_id) : null;
+      return `<div class="lb" data-id="${s.id}">
+        <div style="flex:1;min-width:0">
+          <div class="nm">${esc(t.emoji)} ${esc(t.name)} · ${c ? esc(c.title) : (s.points >= 0 ? "🎁 Bonus" : "⚠️ Malus")}</div>
+          <div class="small muted">${s.note ? esc(s.note) + " · " : ""}${s.status === "approved" ? "approvata" : "rifiutata"}</div>
+          ${c && s.file_path ? `<a class="small" href="${esc(fileUrl(s.file_path))}" target="_blank" rel="noopener">vedi prova</a>` : ""}
+        </div>
+        <div style="text-align:right">
+          <div class="sc" style="font-size:18px;color:${s.status === "rejected" ? "var(--bad)" : "inherit"}">${s.status === "rejected" ? "✗" : (s.points > 0 ? "+" : "") + s.points}</div>
+          <button class="btn ghost small undo" style="padding:6px 10px;margin-top:4px">${c ? "Rivaluta" : "Elimina"}</button>
+        </div></div>`;
+    }).join("")}` : `<div class="empty">Ancora niente qui.</div>`;
+  $("#app").querySelectorAll(".lb").forEach(row => {
+    $(".undo", row).onclick = async () => {
+      const s = subs.find(x => x.id === row.dataset.id);
+      const { error } = s.challenge_id
+        ? await sb.rpc("admin_review", { p_pin: adminPin, p_id: s.id, p_status: "pending", p_points: 0 })
+        : await sb.rpc("admin_delete", { p_pin: adminPin, p_id: s.id });
+      if (error) return adminError(error);
+      toast(s.challenge_id ? "Rimessa in coda" : "Eliminato"); await refresh(true);
+    };
+  });
+}
+function renderSettings(){
+  $("#app").innerHTML = `
+    <h2 class="sec">Bonus / malus</h2>
+    <div class="card">
+      <select id="bt">${teams.map(t => `<option value="${esc(t.id)}">${esc(t.emoji)} ${esc(t.name)}</option>`).join("")}</select>
+      <div class="row" style="margin-top:10px">
+        <input id="bp" type="number" placeholder="Punti (es. 5 o -3)" style="flex:1">
+      </div>
+      <input id="br" type="text" maxlength="200" placeholder="Motivo (es. puntualità, ritardo…)" style="margin-top:10px">
+      <button class="btn siena block" id="bgo" style="margin-top:10px">Assegna</button>
+    </div>
+    <h2 class="sec">Classifica per le squadre</h2>
+    <div class="card">
+      <div class="row"><div style="flex:1"><b>Nascondi classifica</b><div class="small muted">Per la suspense prima della premiazione. Tu la vedi sempre.</div></div>
+      <button class="btn ${state.leaderboard_hidden ? "ok" : "ghost"}" id="hid">${state.leaderboard_hidden ? "Mostra" : "Nascondi"}</button></div>
+    </div>
+    <h2 class="sec">Messaggio per tutti</h2>
+    <div class="card">
+      <input id="msg" type="text" maxlength="160" value="${esc(state.message)}" placeholder="Es. Ritrovo alla Fortezza alle 16:00!">
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost" id="mclr" style="flex:1">Cancella</button>
+        <button class="btn" id="mgo" style="flex:2">Pubblica</button></div>
+    </div>
+    <p class="center small" style="margin-top:20px"><a href="#" id="logout">Esci dall'area giudici</a></p>`;
+  $("#bgo").onclick = async () => {
+    const p = parseInt($("#bp").value, 10);
+    if (!p) return toast("Inserisci i punti");
+    const { error } = await sb.rpc("admin_bonus", { p_pin: adminPin, p_team: $("#bt").value, p_points: p, p_reason: $("#br").value.trim() });
+    if (error) return adminError(error);
+    toast(`${p > 0 ? "+" : ""}${p} a ${teamById($("#bt").value).name}`); $("#bp").value = ""; $("#br").value = ""; await refresh(true);
+  };
+  const setState = async (hidden, message) => {
+    const { error } = await sb.rpc("admin_set_state", { p_pin: adminPin, p_hidden: hidden, p_message: message });
+    if (error) return adminError(error);
+    await refresh(true);
+  };
+  $("#hid").onclick = async () => { await setState(!state.leaderboard_hidden, null); toast(state.leaderboard_hidden ? "Classifica nascosta" : "Classifica visibile"); };
+  $("#mgo").onclick = async () => { await setState(null, $("#msg").value.trim()); toast("Messaggio pubblicato"); };
+  $("#mclr").onclick = async () => { await setState(null, ""); toast("Messaggio cancellato"); };
+  $("#logout").onclick = (e) => { e.preventDefault(); adminPin = null; try { sessionStorage.removeItem("fs_pin"); } catch {}; location.hash = ""; };
+}
+
+/* ---------- sheet ---------- */
+function openSheet(html){
+  sheetOpen = true;
+  $("#sheetRoot").innerHTML = `<div class="sheet-bg" id="sbg"><div class="sheet"><div class="grab"></div>${html}</div></div>`;
+  $("#sbg").onclick = (e) => { if (e.target.id === "sbg") closeSheet(); };
+  document.body.style.overflow = "hidden";
+}
+function closeSheet(){
+  sheetOpen = false; $("#sheetRoot").innerHTML = ""; document.body.style.overflow = ""; render();
+}
+
+boot();
+</script>
+</body>
+</html>
