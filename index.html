@@ -206,7 +206,7 @@ function personStatus(pid, chId){
   return proofs.filter(p => p.challenge_id === chId && mine.includes(p.id))
                .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
 }
-function scores(){
+function scores(includeKhoddam = false){
   const pts = {}, done = {};
   people.forEach(p => { pts[p.id] = 0; done[p.id] = 0; });
   const byId = Object.fromEntries(proofs.map(p => [p.id, p]));
@@ -216,7 +216,7 @@ function scores(){
       pts[l.person_id] += p.points; if (p.challenge_id) done[l.person_id] += 1;
     }
   });
-  return people.map(p => ({ ...p, pts: pts[p.id], done: done[p.id] }))
+  return people.map(p => ({ ...p, pts: pts[p.id], done: done[p.id] })).filter(p => !p.khadem || includeKhoddam)
                .sort((a,b) => b.pts - a.pts || b.done - a.done || a.name.localeCompare(b.name));
 }
 
@@ -287,53 +287,44 @@ function setTabs(list, current, onPick){
 }
 
 /* ===== LOGIN ===== */
-let loginCode = "";
 function renderLogin(){
   $("#tabs").hidden = true; $("#hdrRight").innerHTML = "";
-  if (!loginCode){
-    $("#app").innerHTML = `
-      <div class="card" style="margin-top:16px">
-        <h2 style="font-size:22px">Benvenuti a Siena! 🏰</h2>
-        <p class="muted" style="margin:6px 0 12px">Inserisci il codice della gita (te lo dicono i khoddam).</p>
-        <input id="code" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Codice" style="text-align:center;font-size:24px;letter-spacing:6px">
-        <button class="btn siena block" id="go" style="margin-top:12px">Avanti</button>
-      </div>
-      <p class="center small muted" style="margin-top:18px">Giudice? <a href="#giudice">Entra qui</a></p>`;
-    const go = async () => {
-      const code = $("#code").value.trim(); if (!code) return;
-      $("#go").disabled = true;
-      const { data, error } = await sb.rpc("check_code", { p_code: code });
-      $("#go").disabled = false;
-      if (error) return toast(errMsg(error));
-      if (!data) return toast("Codice sbagliato");
-      loginCode = code; renderLogin();
-    };
-    $("#go").onclick = go; $("#code").onkeydown = (e) => { if (e.key === "Enter") go(); };
-    return;
-  }
   $("#app").innerHTML = `
     <div class="card" style="margin-top:16px">
-      <h2 style="font-size:20px">Chi sei?</h2>
-      <p class="muted small" style="margin:4px 0 0">Scegli il tuo nome. Non entrare con il nome di un altro!</p>
+      <h2 style="font-size:22px">Benvenuti a Siena! 🏰</h2>
+      <p class="muted small" style="margin:4px 0 0">Scegli il tuo nome e inserisci il tuo codice personale (te lo danno i khoddam).</p>
       <div class="search"><input id="q" type="text" placeholder="🔎 Cerca il tuo nome" autocomplete="off"></div>
       <div class="plist" id="pl"></div>
-    </div>`;
+    </div>
+    <p class="center small muted" style="margin-top:18px">Giudice? <a href="#giudice">Entra qui</a></p>`;
   const draw = () => {
     const q = $("#q").value.trim().toLowerCase();
     $("#pl").innerHTML = people.filter(p => p.name.toLowerCase().includes(q)).map(p => `
-      <button class="pitem" data-id="${esc(p.id)}"><span class="avatar" style="background:${colorFor(p.id)}">${esc(initials(p.name))}</span><b>${esc(p.name)}</b></button>`).join("")
+      <button class="pitem" data-id="${esc(p.id)}"><span class="avatar" style="background:${colorFor(p.id)}">${esc(initials(p.name))}</span><b>${esc(p.name)}</b>${p.khadem ? `<span class="why">khadem</span>` : ""}</button>`).join("")
       || `<div class="empty">Nessun nome trovato. Chiedi a un khadem.</div>`;
-    $("#pl").querySelectorAll(".pitem").forEach(b => b.onclick = () => {
-      const p = personById(b.dataset.id);
-      openSheet(`<div class="center"><span class="avatar" style="background:${colorFor(p.id)};width:64px;height:64px;font-size:24px;margin:0 auto">${esc(initials(p.name))}</span>
-        <h3 style="margin-top:10px">Sei ${esc(p.name)}?</h3></div>
-        <div class="row" style="margin-top:14px"><button class="btn ghost" style="flex:1" id="no">No</button>
-        <button class="btn siena" style="flex:2" id="yes">Sì, sono io</button></div>`);
-      $("#no").onclick = closeSheet;
-      $("#yes").onclick = () => { me = { id:p.id, code:loginCode }; store.set("fs_me", me); closeSheet(); tab = "sfide"; render(); toast(`Ciao ${p.name.split(" ")[0]}! 👋`); };
-    });
+    $("#pl").querySelectorAll(".pitem").forEach(b => b.onclick = () => askCode(personById(b.dataset.id)));
   };
   $("#q").oninput = draw; draw();
+}
+function askCode(p){
+  openSheet(`<div class="center"><span class="avatar" style="background:${colorFor(p.id)};width:64px;height:64px;font-size:24px;margin:0 auto">${esc(initials(p.name))}</span>
+    <h3 style="margin-top:10px">Ciao ${esc(p.name)}!</h3><p class="muted">Inserisci il tuo codice personale</p></div>
+    <input id="code" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Codice" style="text-align:center;font-size:24px;letter-spacing:6px">
+    <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" id="no">Indietro</button>
+    <button class="btn siena" style="flex:2" id="go">Entra</button></div>`);
+  const inp = $("#code"); setTimeout(() => inp.focus(), 50);
+  $("#no").onclick = closeSheet;
+  const go = async () => {
+    const code = inp.value.trim(); if (!code) return;
+    $("#go").disabled = true;
+    const { data, error } = await sb.rpc("check_person", { p_person: p.id, p_code: code });
+    $("#go").disabled = false;
+    if (error) return toast(errMsg(error));
+    if (!data) { toast("Codice sbagliato"); inp.select(); return; }
+    me = { id:p.id, code }; store.set("fs_me", me); closeSheet(); tab = "sfide"; render();
+    toast(`Ciao ${p.name.split(" ")[0]}! 👋`);
+  };
+  $("#go").onclick = go; inp.onkeydown = (e) => { if (e.key === "Enter") go(); };
 }
 
 /* ===== VISTA PERSONALE ===== */
@@ -345,7 +336,7 @@ function renderMe(){
       <div class="row" style="margin-top:12px"><button class="btn ghost" style="flex:1" id="no">Annulla</button>
       <button class="btn bad" style="flex:1" id="yes">Esci</button></div>`);
     $("#no").onclick = closeSheet;
-    $("#yes").onclick = () => { me = null; loginCode = ""; store.del("fs_me"); closeSheet(); render(); };
+    $("#yes").onclick = () => { me = null; store.del("fs_me"); closeSheet(); render(); };
   };
   setTabs([
     { k:"sfide", ic:"🎯", label:"Sfide" },
@@ -355,7 +346,7 @@ function renderMe(){
   if (tab === "classifica") return renderBoard(false);
   if (tab === "galleria") return renderGallery();
 
-  const sc = scores(); const mine = sc.find(x => x.id === p.id) || { pts:0, done:0 };
+  const sc = scores(); const mine = scores(true).find(x => x.id === p.id) || { pts:0, done:0 };
   const pos = 1 + sc.filter(x => x.pts > mine.pts).length;   // a pari punti, stessa posizione
   const pend = challenges.filter(c => personStatus(p.id, c.id)?.status === "pending").length;
   const stops = [];
@@ -365,7 +356,7 @@ function renderMe(){
     <div class="hero" style="background:linear-gradient(135deg, var(--siena), #1b1b1b)">
       <div class="lbl">I tuoi punti</div>
       <div class="pts">${mine.pts}</div>
-      <div class="lbl">${mine.done}/${challenges.length} sfide fatte${pend ? ` · ${pend} in attesa` : ""}${state.leaderboard_hidden ? "" : ` · ${pos}° posto`}</div>
+      <div class="lbl">${mine.done}/${challenges.length} sfide fatte${pend ? ` · ${pend} in attesa` : ""}${p.khadem ? " · fuori classifica" : state.leaderboard_hidden ? "" : ` · ${pos}° posto`}</div>
       <div class="progress"><i style="width:${challenges.length ? Math.round(mine.done / challenges.length * 100) : 0}%"></i></div>
     </div>
     ${state.message ? `<div class="banner">📣 ${esc(state.message)}</div>` : ""}
@@ -444,7 +435,7 @@ function openChallenge(c){
       const isMe = p.id === me.id, dis = busy.has(p.id) && !isMe, on = sel.has(p.id);
       return `<button class="pitem ${on ? "on" : ""}" data-id="${esc(p.id)}" ${dis || isMe ? "disabled" : ""}>
         <span class="box">${on ? "✓" : ""}</span><b>${esc(p.name)}</b>
-        ${isMe ? `<span class="why">tu</span>` : dis ? `<span class="why">già fatta</span>` : ""}</button>`;
+        ${isMe ? `<span class="why">tu</span>` : dis ? `<span class="why">già fatta</span>` : p.khadem ? `<span class="why">khadem</span>` : ""}</button>`;
     }).join("");
     $("#pl").querySelectorAll(".pitem:not([disabled])").forEach(b => b.onclick = () => {
       const id = b.dataset.id; sel.has(id) ? sel.delete(id) : sel.add(id); draw();
@@ -477,7 +468,7 @@ function openChallenge(c){
       if (up.error) throw up.error;
       prog.textContent = "Quasi fatto…";
       const { error } = await sb.rpc("submit_proof", {
-        p_code: me.code, p_uploader: me.id, p_challenge: c.id, p_people: [...sel],
+        p_uploader: me.id, p_code: me.code, p_challenge: c.id, p_people: [...sel],
         p_path: path, p_type: blob.type || picked.type, p_note: $("#note").value.trim()
       });
       if (error) throw error;
@@ -486,7 +477,7 @@ function openChallenge(c){
     } catch(e){
       prog.textContent = ""; btn.disabled = false;
       const m = errMsg(e);
-      if (/codice gita/i.test(m)) { toast("Codice gita cambiato: rientra"); me = null; loginCode = ""; store.del("fs_me"); closeSheet(); render(); }
+      if (/codice personale/i.test(m)) { toast("Codice non valido: rientra"); me = null; store.del("fs_me"); closeSheet(); render(); }
       else { toast("Invio non riuscito: " + m, 5000); await loadLive(); }
     }
   };
