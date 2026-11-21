@@ -550,16 +550,74 @@ function renderBoard(asAdmin){
 /* ===== GALLERIA ===== */
 function renderGallery(){
   const list = proofs.filter(s => s.status === "approved" && s.file_path && (!iAmKhadem() || !chById(s.challenge_id)?.secret));
+  const isVid = (s) => (s.file_type || "").startsWith("video/") || /\.(mp4|mov|webm|3gp)$/i.test(s.file_path);
+  const photos = list.filter(s => !isVid(s)), videos = list.filter(isVid);
+  const chunk = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+  const groups = [
+    ...chunk(photos, 20).map((g, i) => ({ ids: g.map(x => x.id), label: `📷 Foto ${i*20+1}–${i*20+g.length}` })),
+    ...chunk(videos, 5).map((g, i) => ({ ids: g.map(x => x.id), label: `🎥 Video ${i*5+1}–${i*5+g.length}` }))
+  ];
   $("#app").innerHTML = list.length ? `
+    <h2 class="sec">Salva sul telefono</h2>
+    <div class="card">
+      <p class="small muted" style="margin:0 0 10px">Tocca un blocco: prima si prepara, poi tocca <b>Salva</b> e scegli <b>"Salva immagini/video"</b>. Meglio con il Wi-Fi.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${groups.map((g, i) =>
+        `<button class="btn ghost small dl" data-ids="${g.ids.join(",")}" style="padding:8px 12px">${g.label}</button>`).join("")}</div>
+    </div>
     <h2 class="sec">Le prove approvate</h2>
     <div class="grid">${list.map(s => {
       const c = chById(s.challenge_id) || {};
-      const isV = (s.file_type || "").startsWith("video/");
-      return `<div class="tile">${isV
+      return `<div class="tile">${isVid(s)
         ? `<video class="m" src="${esc(fileUrl(s.file_path))}" controls playsinline preload="metadata"></video>`
         : `<img class="m" src="${esc(fileUrl(s.file_path))}" alt="" loading="lazy">`}
-        <div class="c"><b>${esc(c.title || "")}</b>${esc(namesOf(proofPeople(s.id)))} · +${s.points}</div></div>`;
+        <div class="c"><b>${esc(c.title || "")}</b>${esc(namesOf(proofPeople(s.id)))} · +${s.points}
+        <button class="btn ghost small dl" data-ids="${s.id}" style="display:block;width:100%;margin-top:6px;padding:6px">⬇️ Salva</button></div></div>`;
     }).join("")}</div>` : `<div class="empty">📷<br>Ancora nessuna prova approvata.<br>La prima potrebbe essere la vostra!</div>`;
+  $("#app").querySelectorAll(".dl").forEach(b => b.onclick = () => saveFlow(b));
+}
+
+// Salvataggio in due tocchi: 1) scarica i file  2) apre il menu Condividi (iPhone lo vuole subito dopo un tocco)
+const prepared = new Map();
+function fileNameFor(s, blob){
+  const c = chById(s.challenge_id) || { title: "Bonus" };
+  const ext = extFor(blob.type || s.file_type, s.file_path);
+  const base = `${c.title} - ${namesOf(proofPeople(s.id))}`.replace(/[\\/:*?"<>|]+/g, "").slice(0, 90).replace(/[.\s]+$/, "");
+  return `${base}.${ext}`;
+}
+async function saveFlow(btn){
+  const key = btn.dataset.ids;
+  const ready = prepared.get(key);
+  if (ready){ // secondo tocco: condividi / scarica
+    try {
+      if (navigator.canShare && navigator.canShare({ files: ready })) {
+        await navigator.share({ files: ready });
+      } else {
+        ready.forEach(f => { const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); });
+      }
+      btn.textContent = "✓ Fatto"; prepared.delete(key);
+    } catch(e) {
+      if (e && e.name === "AbortError") return; // menu chiuso
+      toast("Non riuscito: " + errMsg(e), 4000);
+    }
+    return;
+  }
+  const ids = key.split(",");
+  const items = ids.map(id => proofs.find(p => p.id === id)).filter(Boolean);
+  const old = btn.textContent; btn.disabled = true;
+  try {
+    const files = [];
+    for (let i = 0; i < items.length; i++){
+      btn.textContent = items.length > 1 ? `Preparo ${i+1}/${items.length}…` : "Preparo…";
+      const r = await fetch(fileUrl(items[i].file_path));
+      if (!r.ok) throw new Error("download non riuscito");
+      const blob = await r.blob();
+      files.push(new File([blob], fileNameFor(items[i], blob), { type: blob.type || items[i].file_type || "application/octet-stream" }));
+    }
+    prepared.set(key, files);
+    btn.textContent = "💾 Salva ora"; btn.classList.remove("ghost"); btn.classList.add("siena");
+  } catch(e) {
+    btn.textContent = old; toast("Errore: " + errMsg(e), 4000);
+  } finally { btn.disabled = false; }
 }
 
 /* ===== GIUDICE ===== */
