@@ -197,6 +197,9 @@ const sliderVals = {};
 /* ---------- dati ---------- */
 const personById = (id) => people.find(p => p.id === id);
 const chById = (id) => challenges.find(c => c.id === id);
+// le sfide segrete non si mostrano a chi è entrato come khadem
+const iAmKhadem = () => !!(me && personById(me.id)?.khadem);
+const visibleChallenges = () => iAmKhadem() ? challenges.filter(c => !c.secret) : challenges;
 const fileUrl = (p) => p ? sb.storage.from(CONFIG.BUCKET).getPublicUrl(p).data.publicUrl : "";
 const proofPeople = (proofId) => links.filter(l => l.proof_id === proofId).map(l => l.person_id);
 const namesOf = (ids) => ids.map(id => personById(id)?.name || "?").join(", ");
@@ -348,16 +351,17 @@ function renderMe(){
 
   const sc = scores(); const mine = scores(true).find(x => x.id === p.id) || { pts:0, done:0 };
   const pos = 1 + sc.filter(x => x.pts > mine.pts).length;   // a pari punti, stessa posizione
-  const pend = challenges.filter(c => personStatus(p.id, c.id)?.status === "pending").length;
+  const vis = visibleChallenges();
+  const pend = vis.filter(c => personStatus(p.id, c.id)?.status === "pending").length;
   const stops = [];
-  challenges.forEach(c => { let g = stops.find(x => x.stop === c.stop); if (!g) stops.push(g = { stop:c.stop, items:[] }); g.items.push(c); });
+  vis.forEach(c => { let g = stops.find(x => x.stop === c.stop); if (!g) stops.push(g = { stop:c.stop, items:[] }); g.items.push(c); });
 
   $("#app").innerHTML = `
     <div class="hero" style="background:linear-gradient(135deg, var(--siena), #1b1b1b)">
       <div class="lbl">I tuoi punti</div>
       <div class="pts">${mine.pts}</div>
-      <div class="lbl">${mine.done}/${challenges.length} sfide fatte${pend ? ` · ${pend} in attesa` : ""}${p.khadem ? " · fuori classifica" : state.leaderboard_hidden ? "" : ` · ${pos}° posto`}</div>
-      <div class="progress"><i style="width:${challenges.length ? Math.round(mine.done / challenges.length * 100) : 0}%"></i></div>
+      <div class="lbl">${mine.done}/${vis.length} sfide fatte${pend ? ` · ${pend} in attesa` : ""}${p.khadem ? " · fuori classifica" : state.leaderboard_hidden ? "" : ` · ${pos}° posto`}</div>
+      <div class="progress"><i style="width:${vis.length ? Math.min(100, Math.round(mine.done / vis.length * 100)) : 0}%"></i></div>
     </div>
     ${state.message ? `<div class="banner">📣 ${esc(state.message)}</div>` : ""}
     <div class="banner" style="background:#f3efe8;border-color:var(--line);color:var(--ink)">💡 Le sfide si fanno in gruppetto: quando carichi la prova segni chi c'era e i punti vanno a tutti. Ognuno può fare ogni sfida una volta sola, quindi per farne tante… unisciti a gente diversa!</div>
@@ -545,7 +549,7 @@ function renderBoard(asAdmin){
 
 /* ===== GALLERIA ===== */
 function renderGallery(){
-  const list = proofs.filter(s => s.status === "approved" && s.file_path);
+  const list = proofs.filter(s => s.status === "approved" && s.file_path && (!iAmKhadem() || !chById(s.challenge_id)?.secret));
   $("#app").innerHTML = list.length ? `
     <h2 class="sec">Le prove approvate</h2>
     <div class="grid">${list.map(s => {
