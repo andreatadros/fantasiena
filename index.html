@@ -548,8 +548,8 @@ function renderBoard(asAdmin){
 }
 
 /* ===== GALLERIA ===== */
-function renderGallery(){
-  const list = proofs.filter(s => s.status === "approved" && s.file_path && (!iAmKhadem() || !chById(s.challenge_id)?.secret));
+function renderGallery(asAdmin = false){
+  const list = proofs.filter(s => s.status === "approved" && s.file_path && (asAdmin || !iAmKhadem() || !chById(s.challenge_id)?.secret));
   const isVid = (s) => (s.file_type || "").startsWith("video/") || /\.(mp4|mov|webm|3gp)$/i.test(s.file_path);
   const photos = list.filter(s => !isVid(s)), videos = list.filter(isVid);
   const chunk = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
@@ -650,11 +650,13 @@ function renderAdmin(){
     { k:"coda", ic:"📥", label:"Da valutare", badge: pending.length || "" },
     { k:"classifica", ic:"🏆", label:"Classifica" },
     { k:"storico", ic:"🗂️", label:"Storico" },
+    { k:"galleria", ic:"🖼️", label:"Galleria" },
     { k:"impost", ic:"⚙️", label:"Gestione" }
   ], adminTab, (k) => { adminTab = k; render(); });
 
   if (adminTab === "classifica") { $("#app").innerHTML = renderBoard(true); return; }
   if (adminTab === "storico") return renderHistory();
+  if (adminTab === "galleria") return renderGallery(true);
   if (adminTab === "impost") return renderSettings();
 
   $("#app").innerHTML = pending.length ? `
